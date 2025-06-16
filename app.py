@@ -12,7 +12,7 @@ st.set_page_config(page_title="US Diabetes Strategic Dashboard", page_icon="🩺
 # --- DATA & MODEL LOADING ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv('2015.csv')
+    df = pd.read_csv('brfss_2015_dashboard_data.csv')
     df['DIABETES_STATUS'] = df['DIABETE3'].map({1: 'Yes', 2: 'Yes', 3: 'No', 4: 'No'})
     df.dropna(subset=['DIABETES_STATUS'], inplace=True)
     
