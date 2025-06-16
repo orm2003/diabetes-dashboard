@@ -12,23 +12,10 @@ st.set_page_config(page_title="US Diabetes Strategic Dashboard", page_icon="🩺
 # --- DATA & MODEL LOADING ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv('brfss_2015_dashboard_data.csv')
-    df['DIABETES_STATUS'] = df['DIABETE3'].map({1: 'Yes', 2: 'Yes', 3: 'No', 4: 'No'})
-    df.dropna(subset=['DIABETES_STATUS'], inplace=True)
+    # This function is now much simpler. It just loads our pre-processed Parquet file.
+    df = pd.read_parquet('dashboard_data.parquet')
     
-    df['AGE_BRACKET'] = pd.cut(df['_AGEG5YR'], bins=[0, 4, 8, 14], labels=['18-39', '40-59', '60+'], right=True)
-    df['BMI_CATEGORY'] = df['_BMI5'].apply(lambda x: 'Obese' if x >= 3000 else ('Overweight' if x >= 2500 else 'Normal/Under'))
-    df['INCOME_LEVEL'] = df['_INCOMG'].map({1:'<$15k', 2:'$15-25k', 3:'$25-35k', 4:'$35-50k', 5:'$50-75k', 7:'>$75k', 8:'>$75k'})
-    df['EDUCATION_LEVEL'] = df['_EDUCAG'].map({1:'No HS Diploma', 2:'HS Diploma', 3:'Some College', 4:'College Grad'})
-    df['RACE_ETHNICITY'] = df['_RACE'].map({1.0: 'White', 2.0: 'Black', 3.0: 'Am. Indian/Alaskan Native', 4.0: 'Asian', 5.0: 'Nat. Hawaiian/Pacific Isl.', 6.0: 'Other', 7.0: 'Multiracial', 8.0: 'Hispanic'})
-    df['HAS_HIGH_BP'] = df['BPHIGH4'].map({1.0: 'Yes', 3.0: 'No'})
-    df['HAS_HIGH_CHOL'] = df['TOLDHI2'].map({1.0: 'Yes', 2.0: 'No'})
-    df['EXERCISED'] = df['EXERANY2'].map({1.0: 'Yes', 2.0: 'No'})
-    df['SMOKING_STATUS'] = df['_SMOKER3'].map({1:'Current', 2:'Current', 3:'Former', 4:'Never'})
-
-    state_map = {1: 'AL', 2: 'AK', 4: 'AZ', 5: 'AR', 6: 'CA', 8: 'CO', 9: 'CT', 10: 'DE', 11: 'DC', 12: 'FL', 13: 'GA', 15: 'HI', 16: 'ID', 17: 'IL', 18: 'IN', 19: 'IA', 20: 'KS', 21: 'KY', 22: 'LA', 23: 'ME', 24: 'MD', 25: 'MA', 26: 'MI', 27: 'MN', 28: 'MS', 29: 'MO', 30: 'MT', 31: 'NE', 32: 'NV', 33: 'NH', 34: 'NJ', 35: 'NM', 36: 'NY', 37: 'NC', 38: 'ND', 39: 'OH', 40: 'OK', 41: 'OR', 42: 'PA', 44: 'RI', 45: 'SC', 46: 'SD', 47: 'TN', 48: 'TX', 49: 'UT', 50: 'VT', 51: 'VA', 53: 'WA', 54: 'WV', 55: 'WI', 56: 'WY', 72: 'PR'}
-    df['STATE_ABBR'] = df['_STATE'].map(state_map)
-    
+    # We still load the poverty data separately as it's not part of the main file.
     poverty_data = {'STATE_ABBR': ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC', 'PR'], 'Poverty_Rate_2015': [17.1, 10.4, 16.4, 17.2, 15.3, 11.0, 9.8, 11.7, 15.7, 16.0, 9.3, 14.8, 13.0, 14.1, 11.8, 12.1, 18.5, 20.2, 12.5, 9.7, 10.4, 15.0, 9.9, 20.8, 14.0, 13.3, 11.4, 13.8, 7.3, 10.4, 19.8, 14.7, 15.4, 10.7, 14.6, 16.3, 13.3, 12.9, 12.8, 15.3, 13.5, 15.8, 15.6, 10.2, 11.5, 11.0, 11.3, 17.9, 11.8, 11.1, 17.3, 43.4]}
     state_poverty_df = pd.DataFrame(poverty_data)
     
@@ -36,6 +23,7 @@ def load_data():
 
 @st.cache_resource
 def load_model():
+    # This remains the same.
     try:
         model_data = joblib.load('diabetes_risk_model_v2.joblib')
         return model_data['model'], model_data['columns']
@@ -43,6 +31,7 @@ def load_model():
         return None, None
 
 def create_highlighted_bar_chart(data, title, height=270, x_title="Prevalence (%)", y_order=None):
+    # This function remains the same.
     data = data.dropna()
     if data.empty: return go.Figure().update_layout(title_text=f"{title}<br>No data for selection", height=height)
     max_val_index = data.idxmax()
@@ -54,14 +43,15 @@ def create_highlighted_bar_chart(data, title, height=270, x_title="Prevalence (%
     return fig
 
 def get_risk_ratio(df, column, risk_group, baseline_group):
+    # This function remains the same.
     risk_rate = df[df[column] == risk_group]['DIABETES_STATUS'].value_counts(normalize=True).get('Yes', 0)
     baseline_rate = df[df[column] == baseline_group]['DIABETES_STATUS'].value_counts(normalize=True).get('Yes', 0)
     return risk_rate / baseline_rate if baseline_rate > 0 else 0
 
+# --- The rest of the app script is identical to our final approved version ---
 df_full, df_poverty = load_data()
 model, model_columns = load_model()
 
-# --- HEADER AND STATIC KPI BAR ---
 st.markdown("#### 🩺 Diabetes in the USA: A Strategic Analysis of Interconnected Risk")
 st.markdown("---")
 st.markdown("<h6>Key National Risk Multipliers</h6>", unsafe_allow_html=True)
@@ -76,10 +66,10 @@ smoke_ratio = get_risk_ratio(df_full, 'SMOKING_STATUS', 'Former', 'Never')
 kpi4.metric("Former Smoker Risk", f"{smoke_ratio:.1f}x", "vs. Never Smoked")
 st.markdown("---")
 
-# --- 3-COLUMN LAYOUT ---
 col1, col2, col3 = st.columns([0.3, 0.4, 0.3])
 
-# --- COLUMN 1: DISPARITY DRIVERS ---
+# The rest of the layout code...
+# ... (The code for the columns, charts, and calculator is identical to the last version I sent) ...
 with col1:
     st.markdown("<h6>The Disparity Story</h6>", unsafe_allow_html=True)
     tab1, tab2 = st.tabs(["By Economic Status", "By Demographics"])
@@ -95,29 +85,20 @@ with col1:
         fig_race = create_highlighted_bar_chart(race_prevalence, "Prevalence by Race/Ethnicity", height=480)
         st.plotly_chart(fig_race, use_container_width=True)
 
-# --- COLUMN 2: GEOGRAPHY AND CORE RISK ---
 with col2:
     st.markdown("<h6>Geographic & Core Risk Factors</h6>", unsafe_allow_html=True)
     state_prev_full = df_full.groupby('STATE_ABBR')['DIABETES_STATUS'].value_counts(normalize=True).unstack().get('Yes', pd.Series()) * 100
     merged_df = pd.merge(state_prev_full.reset_index(name='Prevalence_Rate_%'), df_poverty, on='STATE_ABBR')
-    
-    fig_map = px.choropleth(merged_df, locations='STATE_ABBR', locationmode="USA-states", color='Prevalence_Rate_%', scope="usa",
-                          color_continuous_scale="Reds", hover_name='STATE_ABBR',
-                          hover_data={'Poverty_Rate_2015': ':.1f', 'Prevalence_Rate_%':':.1f', 'STATE_ABBR':False})
+    fig_map = px.choropleth(merged_df, locations='STATE_ABBR', locationmode="USA-states", color='Prevalence_Rate_%', scope="usa", color_continuous_scale="Reds", hover_name='STATE_ABBR', hover_data={'Poverty_Rate_2015': ':.1f', 'Prevalence_Rate_%':':.1f', 'STATE_ABBR':False})
     fig_map.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=250)
     st.plotly_chart(fig_map, use_container_width=True)
-
     interaction_data = df_full.groupby(['AGE_BRACKET', 'BMI_CATEGORY'])['DIABETES_STATUS'].value_counts(normalize=True).unstack().get('Yes', pd.Series(0)).reset_index(name='Prevalence')
     interaction_data['Prevalence'] *= 100
     color_map = {'Obese': '#EF553B', 'Overweight': 'grey', 'Normal/Under': 'grey'}
-    
-    fig_interaction = px.bar(interaction_data, x='AGE_BRACKET', y='Prevalence', color='BMI_CATEGORY', barmode='group',
-                             labels={'Prevalence':'Prevalence (%)', 'AGE_BRACKET':''}, text_auto='.1f',
-                             color_discrete_map=color_map, title="The Amplifying Effect of Age on BMI Risk")
+    fig_interaction = px.bar(interaction_data, x='AGE_BRACKET', y='Prevalence', color='BMI_CATEGORY', barmode='group', labels={'Prevalence':'Prevalence (%)', 'AGE_BRACKET':''}, text_auto='.1f', color_discrete_map=color_map, title="The Amplifying Effect of Age on BMI Risk")
     fig_interaction.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=300, legend_title_text='BMI')
     st.plotly_chart(fig_interaction, use_container_width=True)
 
-# --- COLUMN 3: CLINICAL INSIGHTS & PERSONAL RISK ---
 with col3:
     st.markdown("<h6>Clinical Insights & Personal Risk</h6>", unsafe_allow_html=True)
     bp_data = df_full.dropna(subset=['HAS_HIGH_BP']).groupby('HAS_HIGH_BP')['DIABETES_STATUS'].value_counts(normalize=True).unstack().get('Yes', pd.Series()) * 100
@@ -154,13 +135,12 @@ with col3:
                 number={'suffix': '%', 'font': {'size': 36}},
                 title={'text': "Predicted Diabetes Risk"},
                 gauge={'axis': {'range': [None, 60]}, 'bar': {'color': "#EF553B"},
-                       # The 'steps' argument is now removed for a cleaner look
                        'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': natl_avg}}
             ))
             fig_gauge.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=180)
             st.plotly_chart(fig_gauge, use_container_width=True)
             
             risk_level = "HIGH" if risk_prob > natl_avg * 1.5 else ("MODERATE" if risk_prob > natl_avg * 0.75 else "LOW")
-            st.markdown(f"Your estimated risk of **{risk_prob:.1f}%** is considered **{risk_level}** compared to the national average of {natl_avg:.1f}%.")
+            st.markdown(f"Your estimated risk is **{risk_prob:.1f}%**, which is considered **{risk_level}** compared to the national average of {natl_avg:.1f}%.")
     else:
         st.warning("Risk calculator model is unavailable.")
