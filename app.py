@@ -21,8 +21,8 @@ CHOL_DATA = {'No': 9.365491175811153, 'Yes': 23.310935631133013}
 RISK_RATIOS = {'obesity': 3.73887467576189, 'exercise': 1.722255302533886, 'cholesterol': 2.489024354786607, 'smoking': 1.4157190247667792}
 # -----------------------------------------------------------------
 
-# --- HELPER FUNCTIONS ---
-def create_highlighted_bar_chart(data_dict, title, height=270, x_title="Prevalence (%)", y_order=None):
+# --- HELPER FUNCTION ---
+def create_highlighted_bar_chart(data_dict, title, height=270, x_title="Diabetes Prevalence (%)", y_order=None):
     data = pd.Series(data_dict).dropna()
     if data.empty: return go.Figure().update_layout(title_text=f"{title}<br>No data available", height=height)
     max_val_index = data.idxmax()
@@ -33,101 +33,145 @@ def create_highlighted_bar_chart(data_dict, title, height=270, x_title="Prevalen
     if y_order: fig.update_layout(yaxis={'categoryorder':'array', 'categoryarray': y_order})
     return fig
 
-# --- Main App ---
-st.markdown("#### 🩺 Diabetes in the USA: A Strategic Analysis of Interconnected Risk")
-st.markdown("---")
-
-st.markdown("<h6>Key National Risk Multipliers</h6>", unsafe_allow_html=True)
-kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-ratios = RISK_RATIOS
-df_map_data = pd.DataFrame(MAP_DATA)
-natl_avg = df_map_data['Prevalence_Rate_%'].mean()
-kpi1.metric("National Prevalence", f"{natl_avg:.1f}%")
-kpi2.metric("Obesity Risk", f"{ratios.get('obesity', 0):.1f}x", "vs. Normal/Under")
-kpi3.metric("No Exercise Risk", f"{ratios.get('exercise', 0):.1f}x", "vs. Exercised")
-kpi4.metric("High Chol. Risk", f"{ratios.get('cholesterol', 0):.1f}x", "vs. No")
-kpi5.metric("Former Smoker Risk", f"{ratios.get('smoking', 0):.1f}x", "vs. Never Smoked")
-st.markdown("---")
-
-col1, col2, col3 = st.columns([0.3, 0.4, 0.3])
-
-with col1:
-    st.markdown("<h6>The Disparity Story</h6>", unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["By Economic Status", "By Demographics"])
-    with tab1:
-        fig_income = create_highlighted_bar_chart(INCOME_DATA, "Income Disparities", y_order=['>$75k', '$50-75k', '$35-50k', '$25-35k', '$15-25k', '<$15k'], height=250)
-        st.plotly_chart(fig_income, use_container_width=True)
-        fig_edu = create_highlighted_bar_chart(EDU_DATA, "Education Disparities", y_order=['College Grad', 'Some College', 'HS Diploma', 'No HS Diploma'], height=230)
-        st.plotly_chart(fig_edu, use_container_width=True)
-    with tab2:
-        fig_race = create_highlighted_bar_chart(RACE_DATA, "Prevalence by Race/Ethnicity", height=480)
-        st.plotly_chart(fig_race, use_container_width=True)
-
-with col2:
-    st.markdown("<h6>Geographic & Core Risk Factors</h6>", unsafe_allow_html=True)
-    fig_map = px.choropleth(df_map_data, locations='STATE_ABBR', locationmode="USA-states", color='Prevalence_Rate_%', scope="usa",
-                          color_continuous_scale="Reds", hover_name='STATE_ABBR',
-                          hover_data={'Poverty_Rate_2015': ':.1f', 'Prevalence_Rate_%':':.1f', 'STATE_ABBR':False})
-    fig_map.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=250)
-    st.plotly_chart(fig_map, use_container_width=True)
-
-    df_interaction = pd.DataFrame(INTERACTION_DATA)
-    color_map = {'Obese': '#EF553B', 'Overweight': 'grey', 'Normal/Under': 'grey'}
-    fig_interaction = px.bar(df_interaction, x='AGE_BRACKET', y='Prevalence', color='BMI_CATEGORY', barmode='group',
-                             labels={'Prevalence':'Prevalence (%)', 'AGE_BRACKET':''}, text_auto='.1f',
-                             color_discrete_map=color_map, title="The Amplifying Effect of Age on BMI Risk")
-    fig_interaction.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=300, legend_title_text='BMI')
-    st.plotly_chart(fig_interaction, use_container_width=True)
-
-with col3:
-    st.markdown("<h6>Clinical Insights & Personal Risk</h6>", unsafe_allow_html=True)
-    fig_bp = create_highlighted_bar_chart(BP_DATA, "Impact of High Blood Pressure", x_title="", height=140)
-    st.plotly_chart(fig_bp, use_container_width=True)
+# --- MAIN DASHBOARD FUNCTION ---
+def display_dashboard():
+    st.markdown("#### 🩺 Type 2 Diabetes in the USA: A Strategic Analysis of Interconnected Risk")
+    st.markdown("---")
     
-    fig_chol = create_highlighted_bar_chart(CHOL_DATA, "Impact of High Cholesterol", x_title="", height=140)
-    st.plotly_chart(fig_chol, use_container_width=True)
-    
-    st.markdown("<h6 style='margin-top:20px;'>Personal Risk Estimator</h6>", unsafe_allow_html=True)
-    
-    # --- NEW, MORE DETAILED RULE-BASED CALCULATOR ---
-    age_points = {'18-24': 0, '25-34': 2, '35-44': 5, '45-54': 10, '55-64': 18, '65+': 25}
-    bmi_points = {'Normal/Under': 0, 'Overweight': 5, 'Obese': 15}
-    bp_points = {'No': 0, 'Yes': 15}
-    chol_points = {'No': 0, 'Yes': 8}
-    race_points = {'White': 0, 'Asian': -2, 'Hispanic': 3, 'Black': 8, 'Am. Indian/Alaskan Native': 8}
-    edu_points = {'College Grad': -2, 'Some College': 2, 'HS Diploma': 5, 'No HS Diploma': 7}
-    
-    calc_col1, calc_col2 = st.columns(2)
-    with calc_col1:
-        age_input = st.selectbox("Age Group:", list(age_points.keys()), index=3)
-        bmi_input = st.selectbox("BMI Category:", list(bmi_points.keys()), index=1)
-        bp_input = st.radio("High Blood Pressure?", list(bp_points.keys()))
-    with calc_col2:
-        chol_input = st.radio("High Cholesterol?", list(chol_points.keys()))
-        race_input = st.selectbox("Race/Ethnicity:", list(race_points.keys()))
-        edu_input = st.selectbox("Education Level:", list(edu_points.keys()), index=1)
+    st.markdown("<h6>Key National Risk Multipliers</h6>", unsafe_allow_html=True)
+    kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+    ratios = RISK_RATIOS
+    df_map_data = pd.DataFrame(MAP_DATA)
+    natl_avg = df_map_data['Prevalence_Rate_%'].mean()
+    kpi1.metric("National Prevalence", f"{natl_avg:.1f}%")
+    kpi2.metric("Obesity Risk", f"{ratios.get('obesity', 0):.1f}x", "vs. Normal/Under")
+    kpi3.metric("No Exercise Risk", f"{ratios.get('exercise', 0):.1f}x", "vs. Exercised")
+    kpi4.metric("High Chol. Risk", f"{ratios.get('cholesterol', 0):.1f}x", "vs. No")
+    kpi5.metric("Former Smoker Risk", f"{ratios.get('smoking', 0):.1f}x", "vs. Never Smoked")
+    st.markdown("---")
 
-    if st.button("Estimate My Risk", use_container_width=True, type="primary"):
-        # Calculate score based on our weighted point system
-        score = 2.0 # Baseline
-        score += age_points[age_input]
-        score += bmi_points[bmi_input]
-        score += bp_points[bp_input]
-        score += chol_points[chol_input]
-        score += race_points[race_input]
-        score += edu_points[edu_input]
+    col1, col2, col3 = st.columns([0.3, 0.4, 0.3])
+
+    with col1:
+        st.markdown("<h6>The Disparity Story</h6>", unsafe_allow_html=True)
+        tab1, tab2 = st.tabs(["By Economic Status", "By Demographics"])
+        with tab1:
+            fig_income = create_highlighted_bar_chart(INCOME_DATA, "Income Disparities", y_order=['>$75k', '$50-75k', '$35-50k', '$25-35k', '$15-25k', '<$15k'], height=250)
+            st.plotly_chart(fig_income, use_container_width=True)
+            fig_edu = create_highlighted_bar_chart(EDU_DATA, "Education Disparities", y_order=['College Grad', 'Some College', 'HS Diploma', 'No HS Diploma'], height=230)
+            st.plotly_chart(fig_edu, use_container_width=True)
+        with tab2:
+            fig_race = create_highlighted_bar_chart(RACE_DATA, "Prevalence by Race/Ethnicity", height=480)
+            st.plotly_chart(fig_race, use_container_width=True)
+
+    with col2:
+        st.markdown("<h6>Geographic & Core Risk Factors</h6>", unsafe_allow_html=True)
+        fig_map = px.choropleth(df_map_data, locations='STATE_ABBR', locationmode="USA-states", color='Prevalence_Rate_%', scope="usa",
+                              color_continuous_scale="Reds", hover_name='STATE_ABBR',
+                              hover_data={'Poverty_Rate_2015': ':.1f', 'Prevalence_Rate_%':':.1f', 'STATE_ABBR':False})
+        fig_map.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=250, title_text="Hover on a State to see its Poverty Rate", title_x=0.5, title_font_size=14)
+        st.plotly_chart(fig_map, use_container_width=True)
+
+        df_interaction = pd.DataFrame(INTERACTION_DATA)
+        color_map = {'Obese': '#EF553B', 'Overweight': 'grey', 'Normal/Under': 'grey'}
+        fig_interaction = px.bar(df_interaction, x='AGE_BRACKET', y='Prevalence', color='BMI_CATEGORY', barmode='group',
+                                 labels={'Prevalence':'Diabetes Prevalence (%)', 'AGE_BRACKET':''}, text_auto='.1f',
+                                 color_discrete_map=color_map, title="The Amplifying Effect of Age on BMI Risk")
+        fig_interaction.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=300, legend_title_text='BMI')
+        st.plotly_chart(fig_interaction, use_container_width=True)
+
+    with col3:
+        st.markdown("<h6>Clinical Insights & Personal Risk</h6>", unsafe_allow_html=True)
+        fig_bp = create_highlighted_bar_chart(BP_DATA, "Impact of High Blood Pressure", x_title="Diabetes Prevalence (%)", height=140)
+        st.plotly_chart(fig_bp, use_container_width=True)
         
-        risk_prob = min(score, 75.0)
-
-        fig_gauge = go.Figure(go.Indicator(
-            mode="gauge+number", value=risk_prob,
-            number={'suffix': '%', 'font': {'size': 36}},
-            title={'text': "Predicted Diabetes Risk"},
-            gauge={'axis': {'range': [None, 75]}, 'bar': {'color': "#EF553B"},
-                   'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': natl_avg}}
-        ))
-        fig_gauge.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=160)
-        st.plotly_chart(fig_gauge, use_container_width=True)
+        fig_chol = create_highlighted_bar_chart(CHOL_DATA, "Impact of High Cholesterol", x_title="Diabetes Prevalence (%)", height=140)
+        st.plotly_chart(fig_chol, use_container_width=True)
         
-        risk_level = "HIGH" if risk_prob > 25 else ("MODERATE" if risk_prob > 12 else "LOW")
-        st.markdown(f"Your estimated risk of **{risk_prob:.1f}%** is considered **{risk_level}** compared to the national average of {natl_avg:.1f}%.")
+        st.markdown("<h6 style='margin-top:20px;'>Personal Risk Estimator</h6>", unsafe_allow_html=True)
+        
+        age_points = {'18-24': 0, '25-34': 2, '35-44': 6, '45-54': 12, '55-64': 18, '65+': 25}
+        bmi_points = {'Normal/Under': 0, 'Overweight': 7, 'Obese': 18}
+        bp_points = {'No': 0, 'Yes': 15}
+        chol_points = {'No': 0, 'Yes': 8}
+        race_points = {'White': 0, 'Asian': -2, 'Hispanic': 4, 'Black': 9, 'Am. Indian/Alaskan Native': 9}
+        edu_points = {'College Grad': -2, 'Some College': 2, 'HS Diploma': 4, 'No HS Diploma': 6}
+
+        calc_col1, calc_col2 = st.columns(2)
+        with calc_col1:
+            age_input = st.selectbox("Age Group:", list(age_points.keys()), index=3)
+            bmi_input = st.selectbox("BMI Category:", list(bmi_points.keys()), index=1)
+            bp_input = st.radio("High Blood Pressure?", list(bp_points.keys()), index=1)
+        with calc_col2:
+            chol_input = st.radio("High Cholesterol?", list(chol_points.keys()), index=1)
+            race_input = st.selectbox("Race/Ethnicity:", list(race_points.keys()))
+            edu_input = st.selectbox("Education Level:", list(edu_points.keys()), index=1)
+
+        if st.button("Estimate My Risk", use_container_width=True, type="primary"):
+            score = 2.0 
+            score += age_points[age_input]
+            score += bmi_points[bmi_input]
+            score += bp_points[bp_input]
+            score += chol_points[chol_input]
+            score += race_points[race_input]
+            score += edu_points[edu_input]
+            risk_prob = min(score, 75.0)
+
+            fig_gauge = go.Figure(go.Indicator(
+                mode="gauge+number", value=risk_prob,
+                number={'suffix': '%', 'font': {'size': 36}},
+                title={'text': "Estimated Prevalence for Your Profile"},
+                gauge={'axis': {'range': [None, 75]}, 'bar': {'color': "#EF553B"},
+                       'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': natl_avg}}
+            ))
+            fig_gauge.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=160)
+            st.plotly_chart(fig_gauge, use_container_width=True)
+            
+            risk_level = "HIGH" if risk_prob > natl_avg * 1.5 else ("MODERATE" if risk_prob > natl_avg * 0.75 else "LOW")
+            st.markdown(f"For a group with your profile, the estimated prevalence of Type 2 diabetes is **{risk_prob:.1f}%**.")
+            st.caption("*This is a statistical estimate based on 2015 data, not a medical diagnosis.*")
+
+# --- LOGIN LOGIC ---
+
+def login_page():
+    # Use columns to center the content
+    left_space, login_col, right_space = st.columns([1, 1.5, 1])
+
+    with login_col:
+        # Centered logo image using HTML
+        st.markdown(
+            """
+            <div style='text-align: center;'>
+                <img src='https://www.aub.edu.lb/osb/wids/PublishingImages/OSB-MSBA-burgundy.png' width='350'/>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # Centered titles
+        st.markdown("<h1 style='text-align: center;'>Login Page</h1>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center;'>Dashboard Access</h3>", unsafe_allow_html=True)
+
+        # Login form
+        with st.form("login_form"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Log In", use_container_width=True, type="primary")
+
+            if submitted:
+                if password == "msba":
+                    st.session_state['logged_in'] = True
+                    st.rerun()
+                else:
+                    st.error("Incorrect password. Please try again.")
+
+
+# The rest of your app.py script (the MAIN APP ROUTER) remains unchanged.
+# --- MAIN APP ROUTER ---
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+
+if st.session_state['logged_in']:
+    display_dashboard()
+else:
+    login_page()
